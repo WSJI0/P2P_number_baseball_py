@@ -1,0 +1,10 @@
+{"qid":~, "result":~}
+
+[qid]
+0: Error
+1: 로그인
+2: 로그아웃
+3: online peer목록 요청
+4: peer에게 연결되었다 알림
+5: guess number
+6: answer
