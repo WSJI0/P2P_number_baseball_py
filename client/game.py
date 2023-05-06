@@ -7,6 +7,7 @@ class Game:
 
         if len(inp)!=3: return False
         for i in range(3):
+            if len(inp[i])!=1: return False
             if inp[i]>'9' or inp[i]<'0': return False
             inp[i]=int(inp[i])
         if inp[0]==inp[1] or inp[0]==inp[2] or inp[1]==inp[2]: return False

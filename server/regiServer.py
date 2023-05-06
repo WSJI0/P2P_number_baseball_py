@@ -6,27 +6,28 @@ DEBUG=True
 MAX_CCU=20
 
 SERVER_VERSION="0.0.1"
-SERVER_IP="25.11.91.11"
+SERVER_IP="127.0.0.1"
 SERVER_PORT=9998
 
 class Peer:
-    def __init__(self, addr, conn):
+    def __init__(self, addr, conn, port):
         self.addr=addr
+        self.port=port
         self.conn=conn
         
     def __str__(self):
-        return str(self.addr[0])+":"+str(self.addr[1])
+        return str(self.addr[0])+":"+str(self.port)
 
 class Server:
     def __init__(self):
-        # TCP
         self.socket=socket(AF_INET, SOCK_STREAM)
         self.peer_list=[None for _ in range(MAX_CCU)]
 
     def player_thread(self, conn, addr):
-        peer=0
+        peer=0; crash=False
         while True:
             try:
+                if crash: break
                 data=self.get_data(conn, 1024)
                 res={"qid":0}
                 if DEBUG: print("[Client] ", data)
@@ -36,10 +37,13 @@ class Server:
                     for i in range(MAX_CCU):
                         if self.peer_list[i]==None:
                             peer=i
-                            self.peer_list[i]=Peer(addr, conn)
+                            self.peer_list[i]=Peer(addr, conn, data["port"])
                             break
                 elif data["qid"]==2:
+                    addr=[self.peer_list[peer].addr[0], int(self.peer_list[peer].port)]
                     self.peer_list[peer]=None
+                    self.broadcast({"qid":2, "addr":addr})
+                    crash=True
                     continue
                 elif data["qid"]==3:
                     res["qid"]=3
@@ -49,22 +53,28 @@ class Server:
                             online_peers.append(str(self.peer_list[i]))
                     res["result"]=len(online_peers)
                     res["peers"]=online_peers
-                elif data["qid"]==5:
-                    pass
 
                 self.send_data(conn, res)
             except Exception as e:
                 try: self.send_data(conn, {"qid":0})
                 except: pass
+
+                addr=[self.peer_list[peer].addr[0], int(self.peer_list[peer].port)]
                 self.peer_list[peer]=None
                 print("[ERROR_player_thread]", e)
-                break
+                self.broadcast({"qid":2, "addr":addr})
+                crash=True
 
 
     def send_data(self, client, msg):
         if DEBUG: print("[SERVER] ", msg)
         client.send(json.dumps(msg).encode())
 
+    def broadcast(self, msg):
+        for i in range(MAX_CCU):
+            if self.peer_list[i]==None: continue
+            self.send_data(self.peer_list[i].conn, msg)
+    
     def get_data(self, conn, bytes):
         data=conn.recv(bytes)
         data=json.loads(data.decode())
