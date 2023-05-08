@@ -26,26 +26,29 @@ class Console:
     def __init__(self, peer):
         self.peer=peer
         self.command=""
+        self.history=""
         self.peer.reg_console(self)
 
     def userCLI(self):
         import msvcrt as getch
 
         while True:
-            c=getch.getch().decode("utf-8")
-            if c!='\r': 
-                if c=='\b':
-                    self.command=self.command[:-1]
-                    print('\r'+' '*100, end='\r')
-                    cprint(self.command, "yellow", '')
-                else: 
-                    self.command+=c
-                    cprint(c, "yellow", '')
-                continue
+            try:
+                c=getch.getch().decode("utf-8")
+                if c!='\r': 
+                    if c=='\b':
+                        self.command=self.command[:-1]
+                        print('\r'+' '*100, end='\r')
+                        cprint(self.command, "yellow", '')
+                    else: 
+                        self.command+=c
+                        cprint(c, "yellow", '')
+                    continue
+            except: pass
             print()
-
             try:
                 commands=self.command.split()
+                self.history=self.command
                 self.command=""
                 if commands[0]=="logoff":
                     self.peer.logout()

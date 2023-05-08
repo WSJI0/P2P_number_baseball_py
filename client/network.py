@@ -1,24 +1,43 @@
 import json
-import threading
+import time
 from socket import *
-from game import Game
-
 
 DEBUG=False
 
 class NetworkTCP:
     def __init__(self, ip, port, cl_port):
-        self.socket=socket(AF_INET, SOCK_STREAM)
+        self.socket=None
         self.peer=None
-        self.socket.connect((ip, port))
-        self.send_data({"qid":1, "port":cl_port})
-        self.crash=False
+        self.ip=ip
+        self.port=port
+        self.cl_port=cl_port
+        self.connected=False
+        self.init_connection=True
+
+        self.connect()
+
+    def connect(self, msg=True):
+        try:
+            self.socket=socket(AF_INET, SOCK_STREAM)
+            self.socket.connect((self.ip, self.port))
+            self.connected=True
+            # print("server connected")
+        except:
+            if msg:
+                self.peer.console.printQ("[ Server offline ] Please try again..")
+            self.connected=False
+
+        if self.connected:
+            self.send_data({"qid":1, "port":self.cl_port})
 
     def join_peer(self, peer):
         self.peer=peer
 
     def send_data(self, msg):
-        self.socket.send(json.dumps(msg).encode())
+        try:
+            self.socket.send(json.dumps(msg).encode())
+        except: 
+            self.connected=False
 
     def logout(self):
         self.send_data({"qid":2})
@@ -26,26 +45,38 @@ class NetworkTCP:
         self.socket.close()
 
     def get_peer_list(self):
+        if not self.connected:
+            self.peer.console.printQ("Trying to reconnect..")
+            self.connect()
         self.send_data({"qid":3})
 
     def get_data(self):
         while True:
-            if self.crash: break
+            if not self.connected: 
+                self.connect(False)
+                time.sleep(3)
+                continue
             try:
                 data=json.loads(self.socket.recv(1024).decode())
                 if DEBUG: print("[SERVER] ", data)
 
                 if data["qid"]==0:
-                    print("error")
-                    break
+                    pass
+                    # print("error")
+                    # break
                 elif data["qid"]==1:
-                    print("login success")
+                    if self.init_connection:
+                        self.init_connection=False
+                        print("login success")
                 elif data["qid"]==2:
                     self.peer.crashed(data["addr"])
                 elif data["qid"]>=3:
                     self.peer.process(data)
             except Exception as e:
-                print("[Network ERROR]", e)
+                if self.connected:
+                    self.socket.close()
+                    self.connected=False
+                # print("[Network ERROR]", e)
 
 class NetworkUDP:
     def __init__(self, ip, port, my_port, host):

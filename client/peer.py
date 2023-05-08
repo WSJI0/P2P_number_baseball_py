@@ -25,7 +25,7 @@ class Peer:
 
         self.regiServer.join_peer(self)
         self.peerServer.join_peer(self)
-        
+
         self.server_thread=threading.Thread(target=self.regiServer.get_data)
         self.server_thread.daemon=True
         self.server_thread.start()
@@ -55,7 +55,7 @@ class Peer:
     def disconnect(self, peers):
         for i in peers:
             i=int(i)-1
-            self.network(int(i)).disconnect()
+            self.network(int(i)+1).disconnect()
             self.pop_peer(self.connected_peers[int(i)])
 
     def crashed(self, addr):

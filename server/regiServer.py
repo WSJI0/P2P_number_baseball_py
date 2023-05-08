@@ -56,14 +56,14 @@ class Server:
 
                 self.send_data(conn, res)
             except Exception as e:
-                try: self.send_data(conn, {"qid":0})
-                except: pass
-
-                addr=[self.peer_list[peer].addr[0], int(self.peer_list[peer].port)]
-                self.peer_list[peer]=None
                 print("[ERROR_player_thread]", e)
-                self.broadcast({"qid":2, "addr":addr})
-                crash=True
+                try: 
+                    self.send_data(conn, {"qid":0})
+                except:
+                    addr=[self.peer_list[peer].addr[0], int(self.peer_list[peer].port)]
+                    self.peer_list[peer]=None
+                    self.broadcast({"qid":2, "addr":addr})
+                    crash=True
 
 
     def send_data(self, client, msg):

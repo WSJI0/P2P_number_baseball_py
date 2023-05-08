@@ -52,20 +52,23 @@ port는 9998(regiServer port)과 well-known port를 제외하고 사용 가능�
 - regiServer <-> peer
   - TCP  
   빠르게 응답을 처리할 필요가 없고, 속도보다는 데이터 무결성이 더 중요하다고 생각하였습니다.
-  또한 server와 peer들간의 연결을 유지하여 만약 연결이 끊어진다면 해당 peer가 offline이 된것으로 간주하여 online peer list에서 해당 peer를 제외하게 됩니다.
+  또한 server와 peer들간의 연결을 유지하여 만약 연결이 끊어진다면 예외가 발생하고 해당 peer가 offline이 된것으로 간주하여 online peer list에서 해당 peer를 제외하게 됩니다.
   
 - peer <-> peer
   - UDP
-  delay에 크게 민감한 게임은 아니라고 생각하지만 TCP를 사용할 경우 각각의 연결마다 소켓을 유지해야하고,
-  구현이 복잡해질것 같아서 UDP로 구현하였습니다. 다만 이 경우 게임중인 상대 peer가 갑자기 연결이 끊어져 버린다면 이를 바로 체크할 수는 없고 수동으로 disconnect 해줘야하는 문제점이 있습니다.
+  delay에 크게 민감한 게임은 아니라고 생각하지만 TCP를 사용할 경우 각각의 연결마다 소켓을 유지해야하고, 구현이 복잡해질것 같아서 UDP로 구현하였습니다. 
 
 
 ## Issues
 - 갑자기 사라질 수 있는 peer
   - regiServer와는 연결 상태를 유지하기 때문에 갑자기 연결이 끊어지면 예외가 발생하여 server측에서는 해당 peer를 제외하게 됩니다. 하지만 peer와 peer간에는 일단 연결을 유지하지는 않기 때문에 갑자기 사라져도 알 수가 없습니다. 이는 regiServer가 peer가 사라질때마다 다른 peer들에게 알려주도록 구현하였습니다.
+  - 이 부분에 대해서는 많은 고민을 하였는데 처음에는 regiServer와 peer간에 UDP protocol을 사용하여 별도의 conenction을 유지하지는 않았는데, regiServer가 잠시 꺼졌다 켜지거나 했을 때 TCP는 다시 연결 시키고 하는 과정이 복잡할 것 같다고 생각해서 이렇게 구현하였었습니다. 하지만 이 경우 offline peer들을 판별하기 위해 list에 있는 peer들에게 살아있는지 ping을 날려보는 과정이 발생합니다. 이 부분을 최대한 server에서 처리 안하는 방법으로 생각하면서 나온 방법이 server는 단순히 peer list를 제공하고 이를 받은 peer가 해당 list의 peer들에게 ping을 날려 online인지 체크한 후 이를 갱신하여 바뀐 내용에 대해 server에게 제공해주면 server측에서 한번 더 확인하여 update하는 방법을 생각해보았지만, peer 입장에서 online peer list를 요청했는데 다른 peer들이 online인지 확인한다고 늦게 결과가 뜨는 이슈도 있고 이 역시 TCP로 connection을 유지하는 방법보다 overhead가 크다고 생각하였습니다. 따라서 regiServer는 연결된 peer가 있을때 절대 offline이 되지 않는다고 생각하고 구현하였습니다.
+
+- server 재부팅
+  - connection을 유지하지 않으면 별도로 크게 신경 쓸 일은 없지만 connection을 유지한다면 server를 껐다가 키면 다시 peer들과 connection을 맺어야합니다. 이 부분은 만약 peer에서 server와의 connection이 끊어지면 3초마다 다시 재 연결을 시도하도록 구현하였습니다.
 
 - Hack client
-  - server측에서 게임을 돌리는 것이 아닌 client측에서 돌리는 것이기 때문에 나올 수 없는 숫자를 만들어내거나 일부로 계속해서 틀린 응답을 하도록 변조된 client프로그램을 사용하는 peer가 있을 수 있다고 생각하였습니다. 이 때 생각해낸 방법은 client에게 신고기능을 추가해 play log와 함께 server로 전송해 server에서 IP를 차단하는 방법, 그냥 단순히 사용자가 해당 peer를 차단하거나인데 server와의 소통을 줄이기 위해 후자를 선택하였습니다. 
+  - server측에서 게임을 돌리는 것이 아닌 client측에서 돌리는 것이기 때문에 나올 수 없는 숫자를 만들어내거나 일부로 계속해서 틀린 응답을 하도록 변조된 client프로그램을 사용하는 peer가 있을 수 있다고 생각하였습니다. 이 때 생각해낸 방법은 client에게 신고기능을 추가해 play log와 함께 server로 전송해 server에서 IP를 차단하는 방법, 그냥 단순히 사용자가 해당 peer를 차단하거나인데 server의 기능을 최소화 하기위해 후자를 선택하였습니다. 
 
 - Console input
   - 입력과 출력이 서로 다른 쓰레드에서 동작하기 때문에 입력 도중에 출력이 발생하는등 꼬이는 경우가 생길 수 있습니다. 이 부분은 별도로 입력라인이 항상 최하단에 위치하도록 구현하였습니다.
